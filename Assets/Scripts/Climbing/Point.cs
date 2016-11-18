@@ -13,6 +13,18 @@ namespace Climbing {
 		public Neighbour GetNeighbour(Point target){
 			return neighbours.Find(x => x.target == target);
 		}
+
+		public Neighbour GetNeighbour(Vector3 direction){
+			return neighbours.Find(x => x.direction == direction);
+		}
+
+		public Point GetNeighbourPoint(Vector3 direction){
+			var n = GetNeighbour(direction);
+			if(n != null)
+				return n.target;
+
+			return null;
+		}
 	}
 
 	[System.Serializable]

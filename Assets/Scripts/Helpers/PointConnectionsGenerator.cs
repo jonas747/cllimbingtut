@@ -37,11 +37,13 @@ namespace Climbing {
 		}
 
 		void Update(){
-			if(resetConnections)
+			if(resetConnections){
 				ResetConnections();
+			}
 			
-			if(updateConnections)
+			if(updateConnections){
 				UpdateConnections();
+			}
 
 			updateConnections = false;
 			resetConnections = false;
@@ -54,7 +56,8 @@ namespace Climbing {
 
 		void UpdateConnections(){
 			SetPoints();
-
+			CreateConnections();
+			RefreshAll();
 		}
 
 		void CreateConnections(){
@@ -75,7 +78,7 @@ namespace Climbing {
 				var distance = Vector3.Distance(point.transform.position, closest.transform.position);
 				if(distance > maxDistance)
 					continue;
-
+				
 				if(Mathf.Abs(direction.x) > 0 && Mathf.Abs(direction.y) > 0 && distance > directTreshold){
 					continue;
 				}
@@ -92,6 +95,8 @@ namespace Climbing {
 			var candidates = new List<Point>();
 
 			foreach(var p in _points){
+				if(p == from) continue;
+
 				var worldDirection = p.transform.position - from.transform.position;
 				var localDirectoin = from.transform.InverseTransformDirection(worldDirection);
 
@@ -137,10 +142,77 @@ namespace Climbing {
 			UnityEditor.EditorUtility.SetDirty(from);
 		}
 
-		void ResetConnections(){
 
+		// TODO
+		void FindDismountCandidates(){
+			GameObject dismountPrefab =  Resources.Load("Dismount") as GameObject;
+			if(dismountPrefab == null){
+				Debug.LogError("No dismount prefab");
+				return;
+			}
+
+			var generators = GetComponentsInChildren<PointGenerator>();
+			List<Point> candidates = new List<Point>();
+
+			foreach(var generator in generators){
+				if(generator.dismountPoint)
+					candidates.AddRange(generator.pointsInOrder);
+			}
+
+			if(candidates.Count < 1)
+				return;
+
+			GameObject parentObj = new GameObject();
+			parentObj.name = "Dismount points";
+			parentObj.transform.SetParent(transform, false);
+			parentObj.transform.position = candidates[0].transform.localPosition;
+
+			foreach(Point p in candidates){	}
 		}
 
+		// TODO
+		void RefreshAll(){
+		}
+
+		void ResetConnections(){
+			SetPoints();
+			foreach(var point in _points){
+				point.neighbours.Clear();
+			}
+			RefreshAll();
+		}
+
+		public List<Connection> GetAllConnections(){
+			List<Connection> connections = new List<Connection>();
+
+			foreach(var point in _points){
+				foreach(var neighbour in point.neighbours){
+					Connection con = new Connection(point, neighbour.target, neighbour.cType);
+					if(!ContainsConnection(connections, con)){
+						connections.Add(con);
+					}
+				}
+			}
+
+			return connections;
+		}
+
+		bool ContainsConnection(List<Connection> connections, Connection c){
+			return connections.Exists(x => (x.p1 == c.p1 && x.p2 == c.p2) || (x.p2 == c.p1 && x.p1 == c.p2));
+		}
+
+	}
+
+	public class Connection {
+		public Point p1;
+		public Point p2;
+		public ConnectionType cType;
+
+		public Connection(Point p1, Point p2, ConnectionType cType){
+			this.p1 = p1;
+			this.p2 = p2;
+			this.cType = cType;
+		}
 	}
 }
 

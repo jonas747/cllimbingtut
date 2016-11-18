@@ -60,22 +60,41 @@ namespace Climbing {
 				var pos1 = t.transform.position;
 				var pos2 = connectedPoint.target.transform.position;
 
-				switch(connectedPoint.cType){
-					case ConnectionType.direct:
-						Handles.color = Color.red;
-						break;
-					case ConnectionType.dismount:
-						Handles.color = Color.blue;
-						break;
-					case ConnectionType.fall:
-						Handles.color = Color.cyan;
-						break;
-					case ConnectionType.inBetween:
-						Handles.color = Color.green;
-						break;
-				}
+				DrawConnectionLine(pos1, pos2, connectedPoint.cType);
+			}
+		}
 
-				Handles.DrawLine(pos1, pos2);
+		public static void DrawConnectionLine(Vector3 p1, Vector3 p2, ConnectionType cType){
+			switch(cType){
+				case ConnectionType.direct:
+					Handles.color = Color.red;
+					break;
+				case ConnectionType.dismount:
+					Handles.color = Color.blue;
+					break;
+				case ConnectionType.fall:
+					Handles.color = Color.cyan;
+					break;
+				case ConnectionType.inBetween:
+					Handles.color = Color.green;
+					break;
+			}
+			Handles.DrawLine(p1, p2);
+		}
+	}
+
+	[CustomEditor(typeof(DrawLineGrid))]
+	public class DrawLineGridEditor : Editor{
+		void OnSceneGUI(){
+			DrawLineGrid t = target as DrawLineGrid;
+			if(t.grid == null){
+				Debug.LogError("No grid");
+				return;
+			}
+
+			var connections = t.grid.GetAllConnections();
+			foreach(var connection in connections){
+				DrawLineIndividualEditor.DrawConnectionLine(connection.p1.transform.position, connection.p2.transform.position, connection.cType);
 			}
 		}
 	}
