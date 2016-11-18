@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 namespace Climbing {
 	public class ClimbBehaviour : MonoBehaviour {
@@ -117,6 +118,15 @@ namespace Climbing {
 							break;
 					}
 				}
+
+				transform.parent = _curPoint.transform.parent;
+
+				if(_climbState == ClimbState.onPoint){
+					// ik.UpdateAllTargetPositions(_curPoint);
+					// ik.ImmediatePlaceHelpers();
+				}
+			}else{
+				InTransit(_inputDirection);
 			}
 		}
 
@@ -134,12 +144,264 @@ namespace Climbing {
 			return dir;
 		}
 
-		void OnPoint(Vector3 direction){
+		void InTransit(Vector3 direction){
+			switch(curConnection){
+				case ConnectionType.inBetween:
+					UpdateLinearVariables();
+					LinearRootMovement();
+					LerpIKLandingSideLinear();
+					WrapUp();
+					break;
+				case ConnectionType.direct:
+					UpdateDirectVariables(direction);
+					DirectRootMovement();
+					DirectHandleIK();
+					WrapUp(true);
+					break;
+				case ConnectionType.dismount:
+					HandleDismountVariables();
+					DismountRootMovement();
+					HandleDismountIK();
+					DismountWrapUp();
+					break;
+			}
+		}
+
+		void UpdateLinearVariables(){
+			if(_initTransit)
+				return;
+
+			_initTransit = true;
+
+			enableRootMovement = true;
+			_rootReached = false;
+			_ikFollowSideReached = false;
+			_ikLandSideReached = false;
+			_interpolT = 0;
+			_interpolStart = transform.position;
+			_interpolTarget = _targetPosition + rootOffset;
+			
+			var directionToPoint = (_interpolTarget - _interpolStart).normalized;
+			bool twoStep = _targetState == ClimbState.betweenPoints;
+			var back = -transform.forward * 0.05f;
+			if(twoStep)
+				_interpolTarget += back;
+
+			_interpolDistance = Vector3.Distance(_interpolTarget, _interpolStart);
+			//InitIK(directionToPoint, !twoStep);
+		}
+
+		void LinearRootMovement(){
+			float speed = speedLinear * Time.deltaTime;
+			float lerpSpeed = speed / _interpolDistance;
+			_interpolT += lerpSpeed;
+
+			if(_interpolT >= 1){
+				_interpolT = 1;
+				_rootReached = true;
+			}
+
+			transform.position = Vector3.Lerp(_interpolStart, _interpolTarget, _interpolT);
+			HandleRotation();
+		}
+
+		void LerpIKLandingSideLinear(){
 
 		}
 
-		void BetweenPoints(Vector3 direction){
+		void UpdateDirectVariables(Vector3 direction){
+			if(_initTransit) return;
+			
+			_initTransit = true;
 
+			enableRootMovement = true;
+			_rootReached = false;
+			_ikFollowSideReached = false;
+			_ikLandSideReached = false;
+			_interpolT = 0;
+			_rmT = 0;
+			_interpolTarget = _targetPosition + rootOffset;
+			_interpolStart = transform.position;
+
+			bool vertical = Mathf.Abs(direction.y) > 0.1f;
+			_curCurve = vertical ? _directCurveVertical : _directCurveHorizontal;
+			_curCurve.transform.rotation = _curPoint.transform.rotation;
+
+			if(vertical && direction.y <= 0){
+				Vector3 eulers = _curCurve.transform.eulerAngles;
+				eulers.x = 180;
+				eulers.y = 180;
+				_curCurve.transform.eulerAngles = eulers;
+				
+			}else if(!vertical && direction.x <= 0){
+				Vector3 eulers = _curCurve.transform.eulerAngles;
+				eulers.y = -180;
+				_curCurve.transform.eulerAngles = eulers;
+			}
+
+			var points = _curCurve.GetAnchorPoints();
+			points[0].transform.position = _interpolStart;
+			points[points.Length - 1].transform.position = _interpolTarget;
+
+			//InitIKDirect(direction);
+		}
+
+		void DirectRootMovement(){
+			if(enableRootMovement){
+				_interpolT += Time.deltaTime * speedDirect;
+			}else{
+				if(_rmT < _rmMax)
+					_rmT += Time.deltaTime;
+				else
+					enableRootMovement = true;
+			}
+
+			if(_interpolT > 0.95f){
+				_interpolT = 1;
+				_rootReached = true;
+			}
+
+			HandleWeightAll(_interpolT, jumpingCurve);
+
+			transform.position = _curCurve.GetPointAt(_interpolT);
+			HandleRotation();		
+		}
+
+		void DirectHandleIK(){}
+
+		void HandleDismountVariables(){
+			if(_initTransit) return;
+			_initTransit = true;
+
+			enableRootMovement = false;
+			_rootReached = false;
+			_ikLandSideReached = false;
+			_ikFollowSideReached = false;
+			_interpolT = 0;
+			_rmT = 0;
+			_interpolStart = transform.position;
+			_interpolTarget = _targetPosition;
+
+			_curCurve = _dismountCurve;
+			var points = _curCurve.GetAnchorPoints();
+			_curCurve.transform.rotation = transform.rotation;
+			points[0].transform.position = _interpolStart;
+			points[points.Length - 1].transform.position = _interpolTarget;
+
+			// _ikT = 0;
+			// _fikT = 0;
+		}
+
+		void DismountRootMovement(){
+			if(enableRootMovement)
+				_interpolT += Time.deltaTime / 2;
+
+			if(_interpolT >= 1){
+				_interpolT = 1;
+				_rootReached = true;
+			}
+
+			transform.position = _curCurve.GetPointAt(_interpolT);
+		}
+
+		void HandleDismountIK(){}
+
+		bool _waitForWrapUp;
+
+		void WrapUp(bool direct = false){
+			if(!_rootReached || _anim.GetBool("Jump") || _waitForWrapUp) return;
+
+			StartCoroutine(WrapUpTransition(0.05f));
+			_waitForWrapUp = true;
+		}
+
+		IEnumerator WrapUpTransition(float t){
+			yield return new WaitForSeconds(t);
+
+			_climbState = _targetState;
+			if(_climbState == ClimbState.onPoint)
+				_curPoint = _targetPoint;
+
+			_initTransit = false;
+			_lockInput = false;
+			_inputDirection = Vector3.zero;
+			_waitForWrapUp = false;
+		}
+
+		void DismountWrapUp(){
+			if(_rootReached){
+				climbing = false;
+				_initTransit = false;
+				GetComponent<Controller.StateManager>().EnableController();
+			}
+		}
+
+		void OnPoint(Vector3 direction){
+			neighbour = _curPoint.GetNeighbour(direction);
+
+			if(neighbour == null){
+				return;
+			}
+
+			_targetPoint = neighbour.target;
+			_prevPoint = _curPoint;
+			_climbState = ClimbState.inTransit;
+
+			UpdateconnectionTransitByType(neighbour, direction);
+
+			_lockInput = true;
+		}
+
+		void UpdateconnectionTransitByType(Neighbour n, Vector3 inputDirection){
+			var desiredPosition = Vector3.zero;
+			curConnection = n.cType;
+
+			Vector3 direction = _targetPoint.transform.position - _curPoint.transform.position;
+			direction.Normalize();
+		
+			switch(n.cType){
+				case ConnectionType.inBetween:
+				
+					var dist = Vector3.Distance(_curPoint.transform.position, _targetPoint.transform.position);
+					desiredPosition = _curPoint.transform.position + (direction * (dist/2));
+					_targetState = ClimbState.betweenPoints;
+					TransitDir transitDir = TransitDirection(inputDirection, false);
+					PlayAnim(transitDir);
+					break;
+				case ConnectionType.direct:
+
+					desiredPosition = _targetPoint.transform.position;
+					_targetState = ClimbState.onPoint;
+					transitDir = TransitDirection(direction, false);
+					PlayAnim(transitDir);
+					break;
+				case ConnectionType.dismount:
+
+					desiredPosition = _targetPoint.transform.position;
+					_anim.SetInteger("JumpType", 20);
+					_anim.SetBool("Move", true);
+					break;
+			}
+
+			_targetPosition = desiredPosition;
+		}
+
+		void BetweenPoints(Vector3 direction){
+			var n = _targetPoint.GetNeighbour(_prevPoint);
+			if(n != null){
+				if(direction == n.direction){
+					_targetPoint = _prevPoint;
+				}
+			}else{
+				_targetPoint = _curPoint;
+			}
+
+			_targetPosition = _targetPoint.transform.position;
+			_climbState = ClimbState.inTransit;
+			_targetState = ClimbState.onPoint;
+			_prevPoint = _curPoint;
+			_lockInput = true;
+			_anim.SetBool("Move", false);
 		}
 
 		void InitiateFallOff(){
@@ -255,5 +517,79 @@ namespace Climbing {
 
 			_waitToStartClimb = true;
 		}
+
+		void PlayAnim(TransitDir dir, bool jump = false){
+			int target = 0;
+
+			switch(dir){
+				case TransitDir.moveHorizontal:
+					target = 5;
+					break;
+				case TransitDir.moveVertical:
+					target = 6;
+					break;
+				case TransitDir.jumpUp:
+					target = 0;
+					break;
+				case TransitDir.jumpDown:
+					target = 1;
+					break;
+				case TransitDir.jumpLeft:
+					target = 3;
+					break;
+				case TransitDir.jumpRight:
+					target = 2;
+					break;
+			}
+
+			_anim.SetInteger("JumpType", target);
+
+			if(!jump)
+				_anim.SetBool("Move", true);
+			else
+				_anim.SetBool("Jump", true);
+
+		}
+
+		public TransitDir TransitDirection(Vector3 direction, bool jump){
+
+			float targetAngle = Mathf.Atan2(direction.x, direction.y) * Mathf.Rad2Deg;
+
+			if(!jump){
+				if(Mathf.Abs(direction.y) > 0) 
+					return TransitDir.moveVertical;
+
+				return TransitDir.moveHorizontal;
+			}
+
+			if(Mathf.Abs(direction.y) > Mathf.Abs(direction.x)){
+				if(direction.y < 0) 
+					return TransitDir.jumpDown;
+
+				return TransitDir.jumpUp;
+			}
+
+			if(targetAngle < 22.5f && targetAngle > -22.5f){
+				return TransitDir.jumpUp;
+			}else if(targetAngle < 180 + 22.5f && targetAngle > 180 - 22.5f){
+				return TransitDir.jumpDown;
+			}else if(targetAngle < 90 + 22.5f && targetAngle > 90 - 22.5f){
+				return TransitDir.jumpRight;
+			}else if(targetAngle < -90 + 22.5f && targetAngle > -90 - 22.5f){
+				return TransitDir.jumpLeft;
+			}
+
+			return TransitDir.moveHorizontal;
+		}
+	}
+
+
+	public enum TransitDir{
+		moveHorizontal,
+		moveVertical,
+		jumpUp,
+		jumpDown,
+		jumpLeft,
+		jumpRight,
 	}
 }
