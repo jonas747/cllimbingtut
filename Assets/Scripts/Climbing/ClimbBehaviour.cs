@@ -8,7 +8,7 @@ namespace Climbing {
 		bool _waitToStartClimb;
 
 		Animator _anim;
-		//ClimbIK _ik;
+		ClimbIK _ik;
 
 		GridManager _curManager;
 		Point _targetPoint;
@@ -75,7 +75,7 @@ namespace Climbing {
 
 		void Start(){
 			_anim = GetComponent<Animator>();
-			//_ik = GetComponent<ClimbIK>();
+			_ik = GetComponent<ClimbIK>();
 			SetCurveReference();
 
 			transform.parent = null;
@@ -124,8 +124,8 @@ namespace Climbing {
 				transform.parent = _curPoint.transform.parent;
 
 				if(_climbState == ClimbState.onPoint){
-					// ik.UpdateAllTargetPositions(_curPoint);
-					// ik.ImmediatePlaceHelpers();
+					_ik.UpdateAllTargetPositions(_curPoint);
+					_ik.ImmediatePlaceHelpers();
 				}
 			}else{
 				InTransit(_inputDirection);
@@ -190,7 +190,58 @@ namespace Climbing {
 				_interpolTarget += back;
 
 			_interpolDistance = Vector3.Distance(_interpolTarget, _interpolStart);
-			//InitIK(directionToPoint, !twoStep);
+			InitIK(directionToPoint, !twoStep);
+		}
+
+		AvatarIKGoal _ikLanding;
+		AvatarIKGoal _ikFollowing;
+		float _ikT;
+		float _fikT;
+
+		Vector3[] _ikStartPos = new Vector3[4];
+		Vector3[] _ikTargetPos = new Vector3[4];
+
+		void InitIK(Vector3 directionToPoint, bool opposite){
+			Vector3 relativeDirection = transform.InverseTransformDirection(directionToPoint);
+
+			if(Mathf.Abs(relativeDirection.y) > 0.5f){
+				float targetAnim = 0;
+
+				if(_targetState == ClimbState.onPoint){
+					_ikLanding = ClimbIK.GetOppositeIK(_ikLanding);
+				}else{
+					if(Mathf.Abs(relativeDirection.x) > 0){
+						if(relativeDirection.x < 0)
+							_ikLanding = AvatarIKGoal.LeftHand;
+						else
+							_ikLanding = AvatarIKGoal.RightHand;
+					}
+
+					targetAnim = _ikLanding == AvatarIKGoal.RightHand ? 1 : 0;
+					if(relativeDirection.y < 0)
+						targetAnim = _ikLanding == AvatarIKGoal.RightHand ? 0 : 1;
+					
+					_anim.SetFloat("Movement", targetAnim);
+				}
+			}else{
+				_ikLanding = relativeDirection.x < 0 ? AvatarIKGoal.LeftHand : AvatarIKGoal.RightHand;
+				if(opposite){
+					_ikLanding = ClimbIK.GetOppositeIK(_ikLanding);
+				}
+			}
+
+			_ikT = 0;
+			UpdateIKTarget(0, _ikLanding, _targetPoint);
+
+			_ikFollowing = ClimbIK.GetOppositeLimb(_ikLanding);
+			_fikT = 0;
+			UpdateIKTarget(1, _ikFollowing, _targetPoint);
+		}
+
+		void UpdateIKTarget(int posIndex, AvatarIKGoal ikGoal, Point point){
+			_ikStartPos[posIndex] = _ik.GetCurrentPointPosition(ikGoal);
+			_ikTargetPos[posIndex] = point.GetIK(ikGoal).target.transform.position;
+			_ik.UpdatePoint(ikGoal, point);
 		}
 
 		void LinearRootMovement(){
@@ -208,7 +259,26 @@ namespace Climbing {
 		}
 
 		void LerpIKLandingSideLinear(){
+			float speed = speedLinear * Time.deltaTime;
+			float lerpSpeed = speed / _interpolDistance;
 
+			_ikT += lerpSpeed * 2;
+			if(_ikT > 1){
+				_ikT = 1;
+				_ikLandSideReached = true;
+			}
+
+			Vector3 ikPosition = Vector3.Lerp(_ikStartPos[0], _ikTargetPos[0], _ikT);
+			_ik.UpdateTargetPosition(_ikLanding, ikPosition);
+
+			_fikT += lerpSpeed * 2;
+			if(_fikT > 1){
+				_fikT = 1;
+				_ikFollowSideReached = true;
+			}
+
+			Vector3 followSide = Vector3.Lerp(_ikStartPos[1], _ikTargetPos[1], _fikT);
+			_ik.UpdateTargetPosition(_ikFollowing, followSide);
 		}
 
 		void UpdateDirectVariables(Vector3 direction){
@@ -245,7 +315,28 @@ namespace Climbing {
 			points[0].transform.position = _interpolStart;
 			points[points.Length - 1].transform.position = _interpolTarget;
 
-			//InitIKDirect(direction);
+			InitIKDirect(direction);
+		}
+
+		void InitIKDirect(Vector3 directionToPoint){
+			if(directionToPoint.y != 0){
+				_fikT = 0;
+				_ikT = 0;
+
+				UpdateIKTarget(0, AvatarIKGoal.LeftHand, _targetPoint);
+				UpdateIKTarget(1, AvatarIKGoal.LeftFoot, _targetPoint);
+
+				UpdateIKTarget(2, AvatarIKGoal.RightHand, _targetPoint);
+				UpdateIKTarget(3, AvatarIKGoal.RightFoot, _targetPoint);
+			}else{
+				InitIK(directionToPoint, false);
+				InitIKOpposite();
+			}
+		}
+
+		void InitIKOpposite(){
+			UpdateIKTarget(2, ClimbIK.GetOppositeIK(_ikLanding), _targetPoint);
+			UpdateIKTarget(3, ClimbIK.GetOppositeIK(_ikFollowing), _targetPoint);
 		}
 
 		void DirectRootMovement(){
@@ -290,8 +381,8 @@ namespace Climbing {
 			points[0].transform.position = _interpolStart;
 			points[points.Length - 1].transform.position = _interpolTarget;
 
-			// _ikT = 0;
-			// _fikT = 0;
+			_ikT = 0;
+			_fikT = 0;
 		}
 
 		void DismountRootMovement(){
@@ -306,7 +397,38 @@ namespace Climbing {
 			transform.position = _curCurve.GetPointAt(_interpolT);
 		}
 
-		void HandleDismountIK(){}
+		void HandleDismountIK(){
+			if(enableRootMovement)
+				_ikT += Time.deltaTime * 3;
+
+			_fikT += Time.deltaTime * 2;
+
+			HandleIKWeightDismount(_ikT, _fikT, 1, 0);
+		}
+
+		void HandleIKWeightDismount(float ht, float ft, float from, float to){
+			
+			float t1 = ht * 3;
+			if(t1 > 1){
+				t1 = 1;
+				_ikLandSideReached = true;
+			}
+
+			float handsWeight = Mathf.Lerp(from, to, t1);
+			_ik.InfluenceWeight(AvatarIKGoal.LeftHand, handsWeight);
+			_ik.InfluenceWeight(AvatarIKGoal.RightHand, handsWeight);
+			
+			float t2 = ft;
+			if(t2 > 1){
+				t2 = 1;
+				_ikFollowSideReached = true;
+			}
+
+			float feetWeight = Mathf.Lerp(from, to, t2);
+			_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, feetWeight);
+			_ik.InfluenceWeight(AvatarIKGoal.RightFoot, feetWeight);
+
+		}
 
 		bool _waitForWrapUp;
 
@@ -324,7 +446,6 @@ namespace Climbing {
 
 			_climbState = _targetState;
 			if(_climbState == ClimbState.onPoint){
-				Debug.Log("Wrapped up tranition");
 				_curPoint = _targetPoint;
 			}
 
@@ -424,7 +545,7 @@ namespace Climbing {
 
 			climbing = false;
 			_initTransit = false;
-			//ik.AddWeightInfluenceAll(0);
+			_ik.AddWeightInfluenceAll(0);
 			GetComponent<Controller.StateManager>().EnableController();
 			_anim.SetBool("onAir", true);
 		}
@@ -435,11 +556,11 @@ namespace Climbing {
 
 			_initClimb = true;
 
-			// if(ik != null){
-			// 	ik.UpdateAllPointsOnOne(_targetPoint);
-			// 	ik.UpdateAllTargetPositions(_targetPoint);
-			// 	ik.ImmediatePlaceHelpers();
-			// }
+			if(_ik != null){
+				_ik.UpdateAllPointsOnOne(_targetPoint);
+				_ik.UpdateAllTargetPositions(_targetPoint);
+				_ik.ImmediatePlaceHelpers();
+			}
 			
 			curConnection = ConnectionType.direct;
 			_targetState = ClimbState.onPoint;
@@ -482,7 +603,8 @@ namespace Climbing {
 		}
 
 		void HandleWeightAll(float t, AnimationCurve curve){
-
+			float inf = curve.Evaluate(t);
+			_ik.AddWeightInfluenceAll(inf);
 		}
 
 		void HandleRotation(){
