@@ -83,7 +83,6 @@ namespace Climbing {
 
 		void FixedUpdate(){
 			if(climbing){
-				Debug.Log("Climbing");
 				if(!_waitToStartClimb){
 					HandleClimbing();
 					InitiateFallOff();
@@ -106,7 +105,6 @@ namespace Climbing {
 		}
 
 		void HandleClimbing(){
-			Debug.Log("Handleclimbing");
 			if(!_lockInput){
 				float h = Input.GetAxis("Horizontal");
 				float v = Input.GetAxis("Vertical");
@@ -149,7 +147,6 @@ namespace Climbing {
 		}
 
 		void InTransit(Vector3 direction){
-			Debug.Log("In transit");
 			switch(curConnection){
 				case ConnectionType.inBetween:
 					UpdateLinearVariables();
@@ -314,7 +311,9 @@ namespace Climbing {
 		bool _waitForWrapUp;
 
 		void WrapUp(bool direct = false){
-			if(!_rootReached || _anim.GetBool("Jump") || _waitForWrapUp) return;
+			if(!_rootReached || _anim.GetBool("Jump") || _waitForWrapUp){
+				return;
+			}
 
 			StartCoroutine(WrapUpTransition(0.05f));
 			_waitForWrapUp = true;
@@ -324,8 +323,10 @@ namespace Climbing {
 			yield return new WaitForSeconds(t);
 
 			_climbState = _targetState;
-			if(_climbState == ClimbState.onPoint)
+			if(_climbState == ClimbState.onPoint){
+				Debug.Log("Wrapped up tranition");
 				_curPoint = _targetPoint;
+			}
 
 			_initTransit = false;
 			_lockInput = false;
@@ -396,10 +397,18 @@ namespace Climbing {
 			if(n != null){
 				if(direction == n.direction){
 					_targetPoint = _prevPoint;
+					Debug.Log("Moving to pervpoint?");
+				}else{
+					Debug.Log("Doing nothing");
 				}
-			}else{
-				_targetPoint = _curPoint;
 			}
+			// else{
+			// 	Debug.Log("Not moving back");
+			// 	Debug.Log(_targetPoint);
+			// 	Debug.Log(_curPoint);
+			// 	Debug.Log(_curPoint == _targetPoint);
+			// 	_targetPoint = _curPoint;
+			// }
 
 			_targetPosition = _targetPoint.transform.position;
 			_climbState = ClimbState.inTransit;
