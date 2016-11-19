@@ -83,6 +83,7 @@ namespace Climbing {
 
 		void FixedUpdate(){
 			if(climbing){
+				Debug.Log("Climbing");
 				if(!_waitToStartClimb){
 					HandleClimbing();
 					InitiateFallOff();
@@ -96,13 +97,16 @@ namespace Climbing {
 					_initClimb = false;
 				}
 
-				if(Input.GetKey(KeyCode.Space))
+				if(Input.GetKey(KeyCode.Space)){
+					Debug.Log("Space");
 					LookForClimbSpot();
+				}
 			}
 
 		}
 
 		void HandleClimbing(){
+			Debug.Log("Handleclimbing");
 			if(!_lockInput){
 				float h = Input.GetAxis("Horizontal");
 				float v = Input.GetAxis("Vertical");
@@ -145,6 +149,7 @@ namespace Climbing {
 		}
 
 		void InTransit(Vector3 direction){
+			Debug.Log("In transit");
 			switch(curConnection){
 				case ConnectionType.inBetween:
 					UpdateLinearVariables();
@@ -487,20 +492,26 @@ namespace Climbing {
 			var ray = new Ray(camTrans.position, camTrans.forward);
 			RaycastHit hit;
 			LayerMask mask = ~((1 << gameObject.layer) | (1 << 3));
-
 			float maxDistance = 20;
+
 			if(!Physics.Raycast(ray, out hit, maxDistance, mask)){
+				Debug.Log("No hit");
 				return;
 			}
 
+			Debug.Log(hit.transform.gameObject.name);
+
 			var manager = hit.transform.GetComponent<GridManager>();
-			if(manager == null)
+			if(manager == null){
+				Debug.Log("No manager");
 				return;
+			}
 
 			var closestPoint = manager.GetClosestPoint(transform.position);
 			float distance = Vector3.Distance(transform.position, closestPoint.transform.parent.position);
 
 			if(distance > 5){
+				Debug.Log("Too great distance");
 				return;
 			}
 
@@ -516,6 +527,7 @@ namespace Climbing {
 			GetComponent<Controller.StateManager>().DisableController();
 
 			_waitToStartClimb = true;
+			Debug.Log("All o kay");
 		}
 
 		void PlayAnim(TransitDir dir, bool jump = false){
