@@ -360,7 +360,92 @@ namespace Climbing {
 			HandleRotation();		
 		}
 
-		void DirectHandleIK(){}
+		void DirectHandleIK(){
+			if (enableRootMovement)
+				_ikT += Time.deltaTime;
+
+			if (enableRootMovement)
+				_fikT += Time.deltaTime;
+
+
+			LerpIKHands_Direct();
+			LerpIKFeet_Direct();
+			LerpIKLandingSide_Direct();
+			LerpIKFollowSide_Direct();
+		}
+
+		void LerpIKHands_Direct(){
+		
+			if (_ikT >= 1){
+				_ikT = 1;
+				_ikLandSideReached = true;
+			}
+
+			Vector3 lhPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
+			_ik.UpdateTargetPosition(AvatarIKGoal.LeftHand, lhPosition);
+
+			Vector3 rhPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _ikT);
+			_ik.UpdateTargetPosition(AvatarIKGoal.RightHand, rhPosition);
+
+			Debug.DrawLine(transform.position, lhPosition, Color.red);
+			Debug.DrawLine(transform.position, rhPosition, Color.red);
+		}
+
+		void LerpIKFeet_Direct(){
+			// if (_targetPoint.Type == PointType.hanging){
+			// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+			// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+			// }else{
+			if (_fikT > 1){
+				_fikT = 1;
+				_ikFollowSideReached = true;
+			}
+
+			Vector3 lfPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _fikT);
+			_ik.UpdateTargetPosition(AvatarIKGoal.LeftFoot, lfPosition);
+
+			Vector3 rfPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
+			_ik.UpdateTargetPosition(AvatarIKGoal.RightFoot, rfPosition);
+			// }
+		}
+
+		void LerpIKLandingSide_Direct(){
+		
+			if (_ikT > 1){
+				_ikT = 1;
+				_ikLandSideReached = true;
+			}
+
+			Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
+			_ik.UpdateTargetPosition(_ikLanding, landPosition);
+
+			// if (targetPoint.pointType == PointType.hanging){
+			// 	ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+			// 	ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+			// }else{
+			Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _ikT);
+			_ik.UpdateTargetPosition(_ikFollowing, followPosition);
+			// }
+		}
+
+		void LerpIKFollowSide_Direct(){
+			
+			if (_fikT > 1){
+				_fikT = 1;
+				_ikFollowSideReached = true;
+			}
+
+			Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _fikT);
+			_ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikLanding), landPosition);
+
+			// if (targetPoint.pointType == PointType.hanging){
+			// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+			// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+			// }else{
+			Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
+			_ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikFollowing), followPosition);
+			// }
+		}
 
 		void HandleDismountVariables(){
 			if(_initTransit) return;

@@ -124,13 +124,15 @@ namespace Climbing {
 				_hips = _anim.GetBoneTransform(HumanBodyBones.Hips);
 
 			foreach(var limb in limbs){
-				if(!limb.point)
-					return;
+				if(!limb.point){
+					continue;
+				}
 
 				var ikPos = limb.point.GetIK(limb.ik);
 
 				if(ikPos != null && ikPos.target != null){
 					var targetPos = limb.targetPosition;
+
 					
 					if(limb.ik == AvatarIKGoal.RightFoot || limb.ik == AvatarIKGoal.LeftFoot){
 						// Feet has them placed at a lower height
@@ -140,7 +142,9 @@ namespace Climbing {
 					}
 					
 					// TODO PROPER LERPING
-					limb.helper.transform.position = Vector3.Lerp(limb.helper.transform.position, limb.targetPosition, Time.deltaTime * helperSpeed);
+					//limb.helper.position = Vector3.Lerp(limb.helper.transform.position, limb.targetPosition, Time.deltaTime * helperSpeed);
+					limb.helper.position = limb.targetPosition;
+
 				}
 
 				UpdateIK(limb, ikPos);
@@ -150,10 +154,13 @@ namespace Climbing {
 		void UpdateIK(Limb limb, IKPosition ikPos){
 			if(ikPos == null) return;
 
-			_anim.SetIKPositionWeight(limb.ik, limb.weight); 
-			_anim.SetIKRotationWeight(limb.ik, limb.weight);
+			_anim.SetIKPositionWeight(limb.ik, 0.5f); 
+			_anim.SetIKRotationWeight(limb.ik, 0.5f);
 			_anim.SetIKPosition(limb.ik, limb.helper.position);
 			_anim.SetIKRotation(limb.ik, limb.helper.rotation);
+
+			Debug.DrawLine(transform.position, limb.helper.position, Color.green);
+			//Debug.Log(limb.weight);
 
 			if(limb.ik == AvatarIKGoal.LeftHand || limb.ik == AvatarIKGoal.RightHand){
 				var bone = limb.ik == AvatarIKGoal.LeftHand ? HumanBodyBones.LeftShoulder : HumanBodyBones.RightShoulder;
