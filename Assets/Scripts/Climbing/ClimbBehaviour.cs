@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 namespace Climbing {
 	public class ClimbBehaviour : MonoBehaviour {
@@ -59,7 +60,7 @@ namespace Climbing {
 		float _rmMax = 0.25f;
 		float _rmT;
 
-
+		public List<LerpIK> _lerpingIKs = new List<LerpIK>();
 
 		void SetCurveReference(){
 			GameObject chPrefab = Resources.Load("CurvesHolder") as GameObject;
@@ -109,6 +110,11 @@ namespace Climbing {
 				float h = Input.GetAxis("Horizontal");
 				float v = Input.GetAxis("Vertical");
 
+				if(_climbState == ClimbState.onPoint){
+					_ik.UpdateAllTargetPositions(_curPoint);
+					//_ik.ImmediatePlaceHelpers();
+				}
+
 				_inputDirection = ConvertToInputDirection(h, v);
 				if(_inputDirection != Vector3.zero){
 					switch(_climbState){
@@ -123,10 +129,6 @@ namespace Climbing {
 
 				transform.parent = _curPoint.transform.parent;
 
-				if(_climbState == ClimbState.onPoint){
-					_ik.UpdateAllTargetPositions(_curPoint);
-					_ik.ImmediatePlaceHelpers();
-				}
 			}else{
 				InTransit(_inputDirection);
 			}
@@ -192,6 +194,8 @@ namespace Climbing {
 			_interpolDistance = Vector3.Distance(_interpolTarget, _interpolStart);
 			InitIK(directionToPoint, !twoStep);
 		}
+
+
 
 		AvatarIKGoal _ikLanding;
 		AvatarIKGoal _ikFollowing;
@@ -319,23 +323,48 @@ namespace Climbing {
 		}
 
 		void InitIKDirect(Vector3 directionToPoint){
-			if(directionToPoint.y != 0){
-				_fikT = 0;
-				_ikT = 0;
+			// if(directionToPoint.y != 0){
+			// 	_fikT = 0;
+			// 	_ikT = 0;
 
-				UpdateIKTarget(0, AvatarIKGoal.LeftHand, _targetPoint);
-				UpdateIKTarget(1, AvatarIKGoal.LeftFoot, _targetPoint);
+			// 	UpdateIKTarget(0, AvatarIKGoal.LeftHand, _targetPoint);
+			// 	UpdateIKTarget(1, AvatarIKGoal.LeftFoot, _targetPoint);
 
-				UpdateIKTarget(2, AvatarIKGoal.RightHand, _targetPoint);
-				UpdateIKTarget(3, AvatarIKGoal.RightFoot, _targetPoint);
-			}else{
-				InitIK(directionToPoint, false);
-				InitIKOpposite();
+			// 	UpdateIKTarget(2, AvatarIKGoal.RightHand, _targetPoint);
+			// 	UpdateIKTarget(3, AvatarIKGoal.RightFoot, _targetPoint);
+			// }else{
+			// 	//UpdateIKTarget(int posIndex, AvatarIKGoal ikGoal, Point point)
+			// 	InitIK(directionToPoint, false);
+			// 	InitIKOpposite();
+			// }
+
+
+
+			// _lerpingIKs.Clear();
+
+			var delayedSide = AvatarIKGoal.LeftHand;
+			if(directionToPoint.x < 0){
+				delayedSide = AvatarIKGoal.RightHand;
 			}
+
+			var instantSide = ClimbIK.GetOppositeIK(delayedSide);
+
+			_ik.UpdateAllPointsOnOne(_targetPoint);
+			//_ik.UpdateAllTargetPositions(_targetPoint);
+
+			_ik.UpdateTargetPosition(instantSide, _targetPoint.GetIK(instantSide).target.transform.position);
+
+			// // First side
+			// _lerpingIKs.Add(new LerpIK(_ik, instantSide, _targetPoint, 0));
+			// _lerpingIKs.Add(new LerpIK(_ik, ClimbIK.GetOppositeLimb(instantSide), _targetPoint, 0));
+
+			// // Following side
+			// _lerpingIKs.Add(new LerpIK(_ik, delayedSide, _targetPoint, 0.5f));
+			// _lerpingIKs.Add(new LerpIK(_ik, ClimbIK.GetOppositeLimb(delayedSide), _targetPoint, 0.5f));
 		}
 
 		void InitIKOpposite(){
-			UpdateIKTarget(2, ClimbIK.GetOppositeIK(_ikLanding), _targetPoint);
+			//UpdateIKTarget(2, ClimbIK.GetOppositeIK(_ikLanding), _curPoint);
 			UpdateIKTarget(3, ClimbIK.GetOppositeIK(_ikFollowing), _targetPoint);
 		}
 
@@ -351,7 +380,7 @@ namespace Climbing {
 
 			if(_interpolT > 0.95f){
 				_interpolT = 1;
-				_rootReached = true;
+				_rootReached = true;	
 			}
 
 			HandleWeightAll(_interpolT, jumpingCurve);
@@ -361,91 +390,93 @@ namespace Climbing {
 		}
 
 		void DirectHandleIK(){
-			if (enableRootMovement)
-				_ikT += Time.deltaTime;
 
-			if (enableRootMovement)
-				_fikT += Time.deltaTime;
+			_lerpingIKs.ForEach(x => x.Update());
+			// if (enableRootMovement)
+			// 	_ikT += Time.deltaTime;
+
+			// if (enableRootMovement)
+			// 	_fikT += Time.deltaTime;
 
 
-			LerpIKHands_Direct();
-			LerpIKFeet_Direct();
-			LerpIKLandingSide_Direct();
-			LerpIKFollowSide_Direct();
+			// LerpIKHands_Direct();
+			// LerpIKFeet_Direct();
+			// LerpIKLandingSide_Direct();
+			// LerpIKFollowSide_Direct();
 		}
 
-		void LerpIKHands_Direct(){
+		// void LerpIKHands_Direct(){
 		
-			if (_ikT >= 1){
-				_ikT = 1;
-				_ikLandSideReached = true;
-			}
+		// 	if (_ikT >= 1){
+		// 		_ikT = 1;
+		// 		_ikLandSideReached = true;
+		// 	}
 
-			Vector3 lhPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
-			_ik.UpdateTargetPosition(AvatarIKGoal.LeftHand, lhPosition);
+		// 	Vector3 lhPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
+		// 	_ik.UpdateTargetPosition(_ikLanding, lhPosition);
 
-			Vector3 rhPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _ikT);
-			_ik.UpdateTargetPosition(AvatarIKGoal.RightHand, rhPosition);
+		// 	// Vector3 rhPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _ikT);
+		// 	// _ik.UpdateTargetPosition(AvatarIKGoal.RightHand, rhPosition);
 
-			Debug.DrawLine(transform.position, lhPosition, Color.red);
-			Debug.DrawLine(transform.position, rhPosition, Color.red);
-		}
+		// 	Debug.DrawLine(transform.position, lhPosition, Color.red);
+		// 	//Debug.DrawLine(transform.position, rhPosition, Color.red);
+		// }
 
-		void LerpIKFeet_Direct(){
-			// if (_targetPoint.Type == PointType.hanging){
-			// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
-			// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
-			// }else{
-			if (_fikT > 1){
-				_fikT = 1;
-				_ikFollowSideReached = true;
-			}
+		// void LerpIKFeet_Direct(){
+		// 	// if (_targetPoint.Type == PointType.hanging){
+		// 	// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+		// 	// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+		// 	// }else{
+		// 	if (_fikT > 1){
+		// 		_fikT = 1;
+		// 		_ikFollowSideReached = true;
+		// 	}
 
-			Vector3 lfPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _fikT);
-			_ik.UpdateTargetPosition(AvatarIKGoal.LeftFoot, lfPosition);
+		// 	Vector3 lfPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _fikT);
+		// 	_ik.UpdateTargetPosition(AvatarIKGoal.LeftFoot, lfPosition);
 
-			Vector3 rfPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
-			_ik.UpdateTargetPosition(AvatarIKGoal.RightFoot, rfPosition);
-			// }
-		}
+		// 	Vector3 rfPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
+		// 	_ik.UpdateTargetPosition(AvatarIKGoal.RightFoot, rfPosition);
+		// 	// }
+		// }
 
-		void LerpIKLandingSide_Direct(){
+		// void LerpIKLandingSide_Direct(){
 		
-			if (_ikT > 1){
-				_ikT = 1;
-				_ikLandSideReached = true;
-			}
+		// 	if (_ikT > 1){
+		// 		_ikT = 1;
+		// 		_ikLandSideReached = true;
+		// 	}
 
-			Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
-			_ik.UpdateTargetPosition(_ikLanding, landPosition);
+		// 	Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[0], _ikTargetPos[0], _ikT);
+		// 	_ik.UpdateTargetPosition(_ikLanding, landPosition);
 
-			// if (targetPoint.pointType == PointType.hanging){
-			// 	ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
-			// 	ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
-			// }else{
-			Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _ikT);
-			_ik.UpdateTargetPosition(_ikFollowing, followPosition);
-			// }
-		}
+		// 	// if (targetPoint.pointType == PointType.hanging){
+		// 	// 	ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+		// 	// 	ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+		// 	// }else{
+		// 	Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[1], _ikTargetPos[1], _ikT);
+		// 	_ik.UpdateTargetPosition(_ikFollowing, followPosition);
+		// 	// }
+		// }
 
-		void LerpIKFollowSide_Direct(){
+		// void LerpIKFollowSide_Direct(){
 			
-			if (_fikT > 1){
-				_fikT = 1;
-				_ikFollowSideReached = true;
-			}
+		// 	if (_fikT > 1){
+		// 		_fikT = 1;
+		// 		_ikFollowSideReached = true;
+		// 	}
 
-			Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _fikT);
-			_ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikLanding), landPosition);
+		// 	// Vector3 landPosition = Vector3.LerpUnclamped(_ikStartPos[2], _ikTargetPos[2], _fikT);
+		// 	// _ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikLanding), landPosition);
 
-			// if (targetPoint.pointType == PointType.hanging){
-			// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
-			// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
-			// }else{
-			Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
-			_ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikFollowing), followPosition);
-			// }
-		}
+		// 	// if (targetPoint.pointType == PointType.hanging){
+		// 	// 	_ik.InfluenceWeight(AvatarIKGoal.LeftFoot, 0);
+		// 	// 	_ik.InfluenceWeight(AvatarIKGoal.RightFoot, 0);
+		// 	// }else{
+		// 	Vector3 followPosition = Vector3.LerpUnclamped(_ikStartPos[3], _ikTargetPos[3], _fikT);
+		// 	_ik.UpdateTargetPosition(ClimbIK.GetOppositeIK(_ikFollowing), followPosition);
+		// 	// }
+		// }
 
 		void HandleDismountVariables(){
 			if(_initTransit) return;
@@ -608,13 +639,6 @@ namespace Climbing {
 					Debug.Log("Doing nothing");
 				}
 			}
-			// else{
-			// 	Debug.Log("Not moving back");
-			// 	Debug.Log(_targetPoint);
-			// 	Debug.Log(_curPoint);
-			// 	Debug.Log(_curPoint == _targetPoint);
-			// 	_targetPoint = _curPoint;
-			// }
 
 			_targetPosition = _targetPoint.transform.position;
 			_climbState = ClimbState.inTransit;
@@ -819,5 +843,48 @@ namespace Climbing {
 		jumpDown,
 		jumpLeft,
 		jumpRight,
+	}
+
+	public class LerpIK {
+		public AvatarIKGoal ik;
+		public ClimbIK ikController;
+
+		public Point targetPoint;
+
+		Vector3 _startPos;
+		
+		float _t;
+		float _waitTime;
+
+		public bool Finished{
+			get{return _t >= 1;}
+		}
+
+		public LerpIK(ClimbIK ikController, AvatarIKGoal ik, Point targetPoint, float waitTime){
+			this.ik = ik;
+			this.targetPoint = targetPoint;
+			this._waitTime = waitTime;
+			this.ikController = ikController;
+
+			_startPos = ikController.GetCurrentPointPosition(ik);
+			
+		}
+
+		public void Update(){
+			if(_waitTime > 0){
+				_waitTime -= Time.deltaTime;
+				if(_waitTime > 0){
+					return;
+				}
+			}
+
+			_t += Time.deltaTime;
+			Vector3 targetPos = targetPoint.GetIK(ik).target.transform.position;
+			Vector3 pos = Vector3.Lerp(_startPos, targetPos, _t);
+			ikController.UpdateTargetPosition(ik, pos);
+
+			Debug.DrawLine(ikController.transform.position, targetPos, Color.red);
+			Debug.DrawLine(ikController.transform.position, pos, Color.blue);
+		}
 	}
 }

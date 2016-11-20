@@ -143,8 +143,8 @@ namespace Climbing {
 					
 					// TODO PROPER LERPING
 					//limb.helper.position = Vector3.Lerp(limb.helper.transform.position, limb.targetPosition, Time.deltaTime * helperSpeed);
-					limb.helper.position = limb.targetPosition;
-
+					//limb.helper.position = limb.targetPosition;
+					limb.helper.position = Vector3.MoveTowards(limb.helper.position, limb.targetPosition, Time.deltaTime * helperSpeed);
 				}
 
 				UpdateIK(limb, ikPos);
