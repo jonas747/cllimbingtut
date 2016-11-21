@@ -57,7 +57,7 @@ namespace Climbing {
 		public AnimationCurve jumpingCurve;
 		public AnimationCurve mountCurve;
 		public bool enableRootMovement;
-		float _rmMax = 0.25f;
+		float _rmMax = 0.2f;
 		float _rmT;
 
 		public List<LerpIK> _lerpingIKs = new List<LerpIK>();
@@ -290,7 +290,7 @@ namespace Climbing {
 			
 			_initTransit = true;
 
-			enableRootMovement = true;
+			enableRootMovement = false;
 			_rootReached = false;
 			_ikFollowSideReached = false;
 			_ikLandSideReached = false;
@@ -323,24 +323,6 @@ namespace Climbing {
 		}
 
 		void InitIKDirect(Vector3 directionToPoint){
-			// if(directionToPoint.y != 0){
-			// 	_fikT = 0;
-			// 	_ikT = 0;
-
-			// 	UpdateIKTarget(0, AvatarIKGoal.LeftHand, _targetPoint);
-			// 	UpdateIKTarget(1, AvatarIKGoal.LeftFoot, _targetPoint);
-
-			// 	UpdateIKTarget(2, AvatarIKGoal.RightHand, _targetPoint);
-			// 	UpdateIKTarget(3, AvatarIKGoal.RightFoot, _targetPoint);
-			// }else{
-			// 	//UpdateIKTarget(int posIndex, AvatarIKGoal ikGoal, Point point)
-			// 	InitIK(directionToPoint, false);
-			// 	InitIKOpposite();
-			// }
-
-
-
-			// _lerpingIKs.Clear();
 
 			var delayedSide = AvatarIKGoal.LeftHand;
 			if(directionToPoint.x < 0){
@@ -353,15 +335,6 @@ namespace Climbing {
 
 			_ik.UpdateTargetPosition(instantSide, _targetPoint.GetIK(instantSide).target.transform.position);
 			_ik.UpdateTargetPosition(ClimbIK.GetOppositeLimb(instantSide), _targetPoint.GetIK(ClimbIK.GetOppositeLimb(instantSide)).target.transform.position);
-			//_ik.UpdateAllTargetPositions(_targetPoint);
-
-			// // First side
-			// _lerpingIKs.Add(new LerpIK(_ik, instantSide, _targetPoint, 0));
-			// _lerpingIKs.Add(new LerpIK(_ik, ClimbIK.GetOppositeLimb(instantSide), _targetPoint, 0));
-
-			// // Following side
-			// _lerpingIKs.Add(new LerpIK(_ik, delayedSide, _targetPoint, 0.5f));
-			// _lerpingIKs.Add(new LerpIK(_ik, ClimbIK.GetOppositeLimb(delayedSide), _targetPoint, 0.5f));
 		}
 
 		void InitIKOpposite(){

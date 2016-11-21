@@ -154,8 +154,8 @@ namespace Climbing {
 		void UpdateIK(Limb limb, IKPosition ikPos){
 			if(ikPos == null) return;
 
-			_anim.SetIKPositionWeight(limb.ik, 0.5f); 
-			_anim.SetIKRotationWeight(limb.ik, 0.5f);
+			_anim.SetIKPositionWeight(limb.ik, limb.weight); 
+			_anim.SetIKRotationWeight(limb.ik, limb.weight);
 			_anim.SetIKPosition(limb.ik, limb.helper.position);
 			_anim.SetIKRotation(limb.ik, limb.helper.rotation);
 
