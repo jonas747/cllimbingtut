@@ -455,6 +455,7 @@ namespace Climbing {
 			_climbState = _targetState;
 			if(_climbState == ClimbState.onPoint){
 				_curPoint = _targetPoint;
+				_anim.SetBool("Move", false);
 			}
 
 			_initTransit = false;
@@ -508,6 +509,7 @@ namespace Climbing {
 					desiredPosition = _targetPoint.transform.position;
 					_targetState = ClimbState.onPoint;
 					transitDir = TransitDirection(direction, false);
+					Debug.Log(transitDir.ToString());
 					PlayAnim(transitDir);
 					break;
 				case ConnectionType.dismount:
