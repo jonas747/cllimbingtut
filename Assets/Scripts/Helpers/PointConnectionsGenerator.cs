@@ -83,7 +83,7 @@ namespace Climbing {
 					continue;
 				}
 
-				var isDirect = distance < directTreshold;
+				var isDirect = distance > directTreshold;
 
 				AddNeighbour(point, closest, direction, isDirect);
 

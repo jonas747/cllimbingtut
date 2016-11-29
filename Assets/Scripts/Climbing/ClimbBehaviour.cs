@@ -57,7 +57,7 @@ namespace Climbing {
 		public AnimationCurve jumpingCurve;
 		public AnimationCurve mountCurve;
 		public bool enableRootMovement;
-		float _rmMax = 0.2f;
+		float _rmMax = 0.1f;
 		float _rmT;
 
 		public List<LerpIK> _lerpingIKs = new List<LerpIK>();

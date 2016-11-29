@@ -162,15 +162,17 @@ namespace Climbing {
 			Debug.DrawLine(transform.position, limb.helper.position, Color.green);
 			//Debug.Log(limb.weight);
 
-			if(limb.ik == AvatarIKGoal.LeftHand || limb.ik == AvatarIKGoal.RightHand){
-				var bone = limb.ik == AvatarIKGoal.LeftHand ? HumanBodyBones.LeftShoulder : HumanBodyBones.RightShoulder;
-				Transform shoulder = _anim.GetBoneTransform(bone);
+			// if(limb.ik == AvatarIKGoal.LeftHand || limb.ik == AvatarIKGoal.RightHand){
+			// 	var bone = limb.ik == AvatarIKGoal.LeftHand ? HumanBodyBones.LeftShoulder : HumanBodyBones.RightShoulder;
+			// 	Transform shoulder = _anim.GetBoneTransform(bone);
 				
-				Vector3 targetRotationDir = shoulder.transform.position - limb.helper.transform.position;
-				limb.helper.rotation = Quaternion.LookRotation(-targetRotationDir);
-			}else{
-				limb.helper.rotation = ikPos.target.transform.rotation;
-			}
+			// 	Vector3 targetRotationDir = shoulder.transform.position - limb.helper.transform.position;
+			// 	limb.helper.rotation = Quaternion.LookRotation(-targetRotationDir);
+			// }else{
+			// 	limb.helper.rotation = ikPos.target.transform.rotation;
+			// }
+			
+			limb.helper.rotation = ikPos.target.transform.rotation;
 
 			if(ikPos.hint != null){
 				// Find the proper ik hint
