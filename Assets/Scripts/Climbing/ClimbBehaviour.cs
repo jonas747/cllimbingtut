@@ -52,7 +52,7 @@ namespace Climbing {
 
 		public Vector3 rootOffset = new Vector3(0, -0.86f, 0);
 		public float speedLinear = 3;
-		public float speedDirect = 2;
+		public float speedDirect = 3;
 
 		public AnimationCurve jumpingCurve;
 		public AnimationCurve mountCurve;
@@ -342,6 +342,8 @@ namespace Climbing {
 			UpdateIKTarget(3, ClimbIK.GetOppositeIK(_ikFollowing), _targetPoint);
 		}
 
+		float _originalIkSpeed;
+
 		void DirectRootMovement(){
 			if(enableRootMovement){
 				_interpolT += Time.deltaTime * speedDirect;
@@ -355,6 +357,10 @@ namespace Climbing {
 			if(_interpolT > 0.95f){
 				_interpolT = 1;
 				_rootReached = true;	
+			}
+
+			if(_interpolT > 0.2f){
+				_ik.UpdateAllTargetPositions(_targetPoint);
 			}
 
 			HandleWeightAll(_interpolT, jumpingCurve);
