@@ -587,7 +587,7 @@ namespace Climbing {
 			}
 
 			if(enableRootMovement)
-				_interpolT += Time.deltaTime;
+				_interpolT += Time.deltaTime*2;
 
 			if(_interpolT >= 1){
 				_interpolT = 1;
@@ -599,6 +599,8 @@ namespace Climbing {
 			}
 
 			var targetPos = _curCurve.GetPointAt(_interpolT);
+			Debug.DrawLine(transform.position, targetPos, Color.gray);
+			Debug.DrawLine(transform.position, _interpolTarget, Color.black);
 			transform.position = targetPos;
 
 			HandleWeightAll(_interpolT, mountCurve);
@@ -607,6 +609,7 @@ namespace Climbing {
 
 		void HandleWeightAll(float t, AnimationCurve curve){
 			float inf = curve.Evaluate(t);
+			Debug.Log("Inf"+inf.ToString() + ", t:" +t.ToString());
 			_ik.AddWeightInfluenceAll(inf);
 		}
 
